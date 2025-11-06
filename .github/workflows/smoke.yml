@@ -31,6 +31,11 @@ jobs:
           . .venv/bin/activate
           python octofit-tracker/backend/manage.py migrate --noinput
 
+      - name: Run backend tests
+        run: |
+          . .venv/bin/activate
+          python octofit-tracker/backend/manage.py test --verbosity=2
+
       - name: Verify health endpoint with Django test client
         run: |
           . .venv/bin/activate
