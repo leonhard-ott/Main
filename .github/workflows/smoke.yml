@@ -1,0 +1,70 @@
+name: Smoke tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-smoke:
+    name: Backend smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Create venv & install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r octofit-tracker/backend/requirements.txt
+
+      - name: Run migrations
+        run: |
+          . .venv/bin/activate
+          python octofit-tracker/backend/manage.py migrate --noinput
+
+      - name: Start Django dev server in background
+        run: |
+          . .venv/bin/activate
+          nohup python octofit-tracker/backend/manage.py runserver 0.0.0.0:8000 > django.log 2>&1 &
+
+      - name: Wait for health endpoint
+        run: |
+          set -e
+          for i in {1..20}; do
+            if curl -sS http://127.0.0.1:8000/api/health/ -f > /dev/null; then
+              echo 'Backend healthy'
+              exit 0
+            fi
+            echo 'Waiting for backend...'
+            sleep 3
+          done
+          echo 'Failed to reach backend, dumping logs:'
+          sed -n '1,200p' django.log || true
+          exit 1
+
+  frontend-smoke:
+    name: Frontend smoke (build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix octofit-tracker/frontend
+
+      - name: Build frontend
+        run: npm run build --prefix octofit-tracker/frontend
