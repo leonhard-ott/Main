@@ -34,6 +34,8 @@ jobs:
       - name: Verify health URL is registered (Django URL resolve)
         run: |
           . .venv/bin/activate
+          # Ensure the backend package directory is on PYTHONPATH so imports resolve
+          export PYTHONPATH="$PWD/octofit-tracker/backend:$PYTHONPATH"
           python - <<'PY'
 import os, sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','octofit_tracker.settings')
@@ -45,7 +47,7 @@ try:
     print('URL /api/health/ resolved successfully')
 except Exception as e:
     print('URL resolution failed:', e)
-    sys.exit(1)
+    raise
 PY
 
   frontend-smoke:
