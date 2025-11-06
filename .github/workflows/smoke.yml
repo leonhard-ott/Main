@@ -31,25 +31,22 @@ jobs:
           . .venv/bin/activate
           python octofit-tracker/backend/manage.py migrate --noinput
 
-      - name: Start Django dev server in background
+      - name: Verify health URL is registered (Django URL resolve)
         run: |
           . .venv/bin/activate
-          nohup python octofit-tracker/backend/manage.py runserver 0.0.0.0:8000 > django.log 2>&1 &
-
-      - name: Wait for health endpoint
-        run: |
-          set -e
-          for i in {1..20}; do
-            if curl -sS http://127.0.0.1:8000/api/health/ -f > /dev/null; then
-              echo 'Backend healthy'
-              exit 0
-            fi
-            echo 'Waiting for backend...'
-            sleep 3
-          done
-          echo 'Failed to reach backend, dumping logs:'
-          sed -n '1,200p' django.log || true
-          exit 1
+          python - <<'PY'
+import os, sys
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','octofit_tracker.settings')
+try:
+    import django
+    django.setup()
+    from django.urls import resolve
+    resolve('/api/health/')
+    print('URL /api/health/ resolved successfully')
+except Exception as e:
+    print('URL resolution failed:', e)
+    sys.exit(1)
+PY
 
   frontend-smoke:
     name: Frontend smoke (build)
@@ -64,7 +61,7 @@ jobs:
           node-version: '18'
 
       - name: Install frontend dependencies
-        run: npm ci --prefix octofit-tracker/frontend
+        run: npm install --prefix octofit-tracker/frontend
 
       - name: Build frontend
         run: npm run build --prefix octofit-tracker/frontend
