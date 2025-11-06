@@ -31,7 +31,7 @@ jobs:
           . .venv/bin/activate
           python octofit-tracker/backend/manage.py migrate --noinput
 
-      - name: Verify health URL is registered (Django URL resolve)
+      - name: Verify health endpoint with Django test client
         run: |
           . .venv/bin/activate
           # Ensure the backend package directory is on PYTHONPATH so imports resolve
@@ -42,11 +42,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE','octofit_tracker.settings')
 try:
     import django
     django.setup()
-    from django.urls import resolve
-    resolve('/api/health/')
-    print('URL /api/health/ resolved successfully')
+    from django.test import Client
+    c = Client()
+    res = c.get('/api/health/')
+    print('health status code:', res.status_code)
+    print('health content:', res.content[:200])
+    if res.status_code != 200:
+        raise SystemExit(1)
 except Exception as e:
-    print('URL resolution failed:', e)
+    print('Health endpoint test failed:', repr(e))
     raise
 PY
 
