@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+
+# local venvs that might be created by instructions
+venv/
